@@ -1,0 +1,72 @@
+#!/bin/sh
+# loom's treadle shim: resolves OS/arch, fetches + verifies + caches the
+# pinned treadle binary from skillweave/treadle's GitHub release artifacts
+# on first use, then execs it. Per Phase 0 Prereq 6, plugin bin/ is
+# auto-prepended to PATH so skills invoke `treadle <cmd>` by bare name.
+#
+# Cache path encodes version, so upgrading treadle = bumping bin/VERSION
+# = structural cache miss = fresh download. No runtime version check.
+set -eu
+
+SHIM_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+VERSION_FILE="${SHIM_DIR}/VERSION"
+if [ ! -f "${VERSION_FILE}" ]; then
+    echo "treadle shim: missing ${VERSION_FILE}" >&2
+    exit 1
+fi
+VER=$(head -n1 "${VERSION_FILE}" | tr -d '[:space:]')
+if [ -z "${VER}" ]; then
+    echo "treadle shim: ${VERSION_FILE} is empty" >&2
+    exit 1
+fi
+
+OS_RAW=$(uname -s 2>/dev/null || echo unknown)
+ARCH_RAW=$(uname -m 2>/dev/null || echo unknown)
+
+case "${OS_RAW}" in
+    Linux)  OS=linux ;;
+    Darwin) OS=darwin ;;
+    *) echo "treadle shim: unsupported OS ${OS_RAW}" >&2; exit 1 ;;
+esac
+
+case "${ARCH_RAW}" in
+    x86_64|amd64)       ARCH=amd64 ;;
+    aarch64|arm64)      ARCH=arm64 ;;
+    *) echo "treadle shim: unsupported arch ${ARCH_RAW}" >&2; exit 1 ;;
+esac
+
+CACHE_ROOT="${XDG_CACHE_HOME:-${HOME}/.cache}/loom"
+CACHE_DIR="${CACHE_ROOT}/treadle-v${VER}/${OS}-${ARCH}"
+CACHE_BIN="${CACHE_DIR}/treadle"
+
+if [ ! -x "${CACHE_BIN}" ]; then
+    mkdir -p "${CACHE_DIR}"
+    TARBALL="treadle-${OS}-${ARCH}.tar.gz"
+    BASE_URL="https://github.com/skillweave/treadle/releases/download/v${VER}"
+
+    TMPDIR_SHIM=$(mktemp -d 2>/dev/null || mktemp -d -t "loom-treadle")
+    trap 'rm -rf "${TMPDIR_SHIM}"' EXIT INT TERM
+
+    echo "treadle shim: fetching treadle v${VER} for ${OS}/${ARCH}..." >&2
+    curl -sSfL -o "${TMPDIR_SHIM}/${TARBALL}" "${BASE_URL}/${TARBALL}"
+    curl -sSfL -o "${TMPDIR_SHIM}/checksums.sha256" "${BASE_URL}/checksums.sha256"
+
+    EXPECTED=$(awk -v f="${TARBALL}" '$2 == f { print $1 }' "${TMPDIR_SHIM}/checksums.sha256")
+    if [ -z "${EXPECTED}" ]; then
+        echo "treadle shim: no SHA256 for ${TARBALL} in checksums.sha256" >&2
+        exit 1
+    fi
+    ACTUAL=$(sha256sum "${TMPDIR_SHIM}/${TARBALL}" | awk '{print $1}')
+    if [ "${EXPECTED}" != "${ACTUAL}" ]; then
+        echo "treadle shim: SHA256 mismatch for ${TARBALL}" >&2
+        echo "  expected: ${EXPECTED}" >&2
+        echo "  actual:   ${ACTUAL}" >&2
+        exit 1
+    fi
+
+    tar -C "${TMPDIR_SHIM}" -xzf "${TMPDIR_SHIM}/${TARBALL}"
+    mv "${TMPDIR_SHIM}/treadle" "${CACHE_BIN}"
+    chmod +x "${CACHE_BIN}"
+fi
+
+exec "${CACHE_BIN}" "$@"
