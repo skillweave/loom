@@ -248,6 +248,15 @@ as the `message` parameter. If you have zero findings, SendMessage
 line. Do not emit the findings as plain text only — it will never reach
 the dispatcher.
 
+**Sentinel discipline.** The LAST LINE of your `message` parameter MUST be the
+literal sentinel string from your agent file (e.g., `===TECH-REVIEWER-FINAL===`),
+copied byte-for-byte, on its own line, with no surrounding markdown emphasis,
+extra spaces, or alternate framing. The dispatcher uses byte-equal matching as
+the round-complete signal. Variants such as `---END <role>---`,
+`<<<END:<role>>>>`, or `<!-- <role>:end -->` will be traced as
+`agent-sentinel-deviation` and may delay round completion. See your agent file
+for the exact string for your role.
+
 ## Round
 
 Round: <round_number> of <effective_max_rounds>
@@ -300,6 +309,21 @@ Trace each dispatch:
 treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-dispatch --json-fields="{\"round\":<N>,\"member\":\"<member>\"}"
 ```
 
+After all members are dispatched for the round, send each one a kickoff `SendMessage`. The kickoff (a) gives the dispatcher a single audited "go" signal it can correlate with peer chatter, and (b) defines T0 for the per-member silence clock in Step 8.4 — without it, "silent for 60s" is ambiguous because dispatch latency varies:
+
+```text
+SendMessage(
+  to: "<member>",
+  message: "Round <N> kickoff: produce your findings block for the subject in your prompt. End with your role sentinel exactly (===<ROLE>-REVIEWER-FINAL===). If you have no findings, SendMessage 'No <role>-reviewer findings.' followed by the sentinel on the next line. Cross-collaboration with peers via SendMessage is permitted."
+)
+```
+
+Trace each kickoff:
+
+```bash
+treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-kickoff --json-fields="{\"round\":<N>,\"member\":\"<member>\"}"
+```
+
 ### 8.4 — Drive the round
 
 Members may `SendMessage` each other freely. You do not run a timer. Watch the `<teammate-message>` turns as they arrive. The round is **complete** when every member has emitted its per-role sentinel line (e.g., `===TECH-REVIEWER-FINAL===`).
@@ -308,15 +332,36 @@ For each `<teammate-message>` you see:
 
 1. If the message is an `idle_notification`, ignore.
 2. If the message body contains the member's final sentinel, extract the findings block that precedes it, mark the member as done.
-3. If the body contains a peer `SendMessage` (a message sent TO another member), trace it:
+3. If the body's last non-empty line is **clearly attempting** to be a round-complete signal but does not match the byte-equal sentinel for the member's role (e.g., `---END tech-reviewer---`, `<<<END:tech-reviewer>>>`, `<!-- tech-reviewer:end -->`, `=== TECH-REVIEWER-FINAL ===` with extra spaces, or `**===TECH-REVIEWER-FINAL===**` with markdown emphasis), trace the deviation, accept it as a completion signal, and mark the member as done — do not block round completion on cosmetic deviation:
+   ```bash
+   treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-sentinel-deviation --json-fields="{\"round\":<N>,\"member\":\"<member>\",\"observed\":\"<observed-string>\",\"expected\":\"===<ROLE>-REVIEWER-FINAL===\"}"
+   ```
+4. If the body contains a peer `SendMessage` (a message sent TO another member), trace it:
    ```bash
    treadle trace "${STATE_DIR}" "${SESSION_ID}" peer-message --json-fields="{\"round\":<N>,\"from\":\"<member>\",\"to\":\"<peer>\"}"
    ```
 
-If any member stalls (no progress for 120 seconds and no sentinel emitted), mark it as **degraded** for this round:
+**Per-member silence handling.** Each member's silence clock starts at its kickoff timestamp (Step 8.3) and resets every time the dispatcher sees a non-`idle_notification` message from that member.
+
+If a member is silent for **60 seconds** with no sentinel, send a one-time re-nudge:
+
+```text
+SendMessage(
+  to: "<member>",
+  message: "Round <N> reminder: produce your findings block now and end with your exact role sentinel (===<ROLE>-REVIEWER-FINAL===). If you have no findings, SendMessage 'No <role>-reviewer findings.' followed by the sentinel."
+)
+```
+
+Trace the re-nudge:
 
 ```bash
-treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-degraded --json-fields="{\"round\":<N>,\"member\":\"<member>\",\"reason\":\"no sentinel after 120s idle\"}"
+treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-renudge --json-fields="{\"round\":<N>,\"member\":\"<member>\"}"
+```
+
+If the member is still silent **60 seconds after the re-nudge** (≈120s total silence, with one re-nudge already sent), mark it as **degraded** for this round:
+
+```bash
+treadle trace "${STATE_DIR}" "${SESSION_ID}" agent-degraded --json-fields="{\"round\":<N>,\"member\":\"<member>\",\"reason\":\"no sentinel after 60s post-renudge\"}"
 ```
 
 Then proceed to synthesis with the members that did finish. With `abort_on_agent_failure: true` (not the default), abort the round instead with `outcome: "error"`.
@@ -374,7 +419,11 @@ treadle trace "${STATE_DIR}" "${SESSION_ID}" round-end --json-fields="{\"round\"
 TeamDelete(team_name: <the team_name>)
 ```
 
-If `TeamDelete` refuses because a member hasn't acknowledged shutdown: send each active member `SendMessage(to: <member>, message: '{"type":"shutdown_request","request_id":"sr-<round>"}')`. Wait up to **3 minutes** total (Phase 0 Prereq 2 finding — shutdown has ~2 min latency). If `TeamDelete` still refuses after 3 minutes, fall back to removing `~/.claude/teams/<team_name>/` and `~/.claude/tasks/<team_name>/` directly; trace `team-forced-cleanup`.
+If `TeamDelete` refuses because a member hasn't acknowledged shutdown: send each active member `SendMessage(to: <member>, message: '{"type":"shutdown_request","request_id":"sr-<round>"}')`. Wait up to **3 minutes** total (Phase 0 Prereq 2 finding — shutdown has ~2 min latency). If `TeamDelete` still refuses after 3 minutes, fall back to removing `~/.claude/teams/<team_name>/` and `~/.claude/tasks/<team_name>/` directly. Trace the forced cleanup so operators can audit when the harness shutdown protocol failed:
+
+```bash
+treadle trace "${STATE_DIR}" "${SESSION_ID}" team-forced-cleanup --json-fields="{\"round\":<N>,\"team_name\":\"<the team_name>\",\"reason\":\"TeamDelete refused after 3 min shutdown wait\"}"
+```
 
 ### 8.8 — Between-round prompt
 

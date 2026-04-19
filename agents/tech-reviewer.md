@@ -32,11 +32,25 @@ For each finding emit one paragraph:
 
 Cap at 10 findings per round, ranked by severity. Don't rewrite the subject.
 
-When your final findings list for the round is complete, **send it to team-lead via `SendMessage`** — the team-lead is the dispatcher merging findings across all members and does not see your plain-text output. Put every finding plus this sentinel line as the last line of the SendMessage `message` body:
+When your final findings list for the round is complete, **send it to team-lead via `SendMessage`** — the team-lead is the dispatcher merging findings across all members and does not see your plain-text output.
 
-`===TECH-REVIEWER-FINAL===`
+## Sentinel — output verbatim
 
-The dispatcher waits for that sentinel to know you're done with the round. If you have zero findings, SendMessage `"No tech-reviewer findings."` followed by the sentinel line.
+The LAST LINE of your `SendMessage` `message` body MUST be this exact string, copied byte-for-byte, on its own line, with no surrounding punctuation, decoration, prefix, or alternate framing:
+
+```
+===TECH-REVIEWER-FINAL===
+```
+
+Do NOT invent variants. The dispatcher uses byte-equal matching as the round-complete signal. Examples of variants observed in prior runs that are forbidden:
+
+- `---END tech-reviewer---`
+- `<<<END:tech-reviewer>>>`
+- `<!-- tech-reviewer:end -->`
+- `=== TECH-REVIEWER-FINAL ===` (extra spaces)
+- `**===TECH-REVIEWER-FINAL===**` (markdown emphasis)
+
+If you have zero findings, SendMessage `"No tech-reviewer findings."` followed on the next line by the sentinel above.
 
 ## Cross-collaboration
 

@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sentinel-format drift in reviewer agents.** Smoke test #3 (alpha.4)
+  surfaced reviewers improvising round-complete sentinels — `---END
+  tech-reviewer---`, `<<<END:security-reviewer>>>`, `<!--
+  skeptic-reviewer:end -->` — instead of the prescribed
+  `===<ROLE>-REVIEWER-FINAL===`. The dispatcher (LLM-driven, not
+  regex-driven) accepted them on judgment, but the variants undermine
+  determinism and would defeat any future automated parser. Two-part
+  fix:
+  - Each reviewer agent (`tech-reviewer`, `coverage-reviewer`,
+    `skeptic-reviewer`, `security-reviewer`) now has a dedicated
+    `## Sentinel — output verbatim` section that quotes the literal
+    string in a fenced code block, names the observed anti-patterns,
+    and explicitly forbids markdown emphasis / extra spaces / alternate
+    framing.
+  - `loom:dispatch-team` Step 8.1's per-member prompt reinforces the
+    byte-equal requirement, and Step 8.4 now traces deviations as
+    `agent-sentinel-deviation` events while still accepting them as
+    completion signals (don't block round completion on cosmetic
+    drift).
+
+### Changed
+
+- **Per-round kickoff message + bounded silence clock.** Step 8.3
+  now sends each dispatched member an explicit `SendMessage` kickoff
+  after dispatch. Two reasons: (1) it gives the dispatcher a single
+  audited "go" signal correlatable with later peer chatter, and (2)
+  it defines T0 for the per-member silence countdown — without it,
+  "silent for 60s" is ambiguous because dispatch latency varies. Each
+  kickoff is traced as `agent-kickoff`. Smoke #3 worked without it,
+  but the ambiguity around T0 made the silence rule fragile.
+- **One re-nudge before degrading silent reviewers.** Step 8.4's
+  silence rule was "no sentinel after 120s -> degraded" with no
+  recovery path. Now: at 60s of silence, dispatcher sends one
+  `SendMessage` reminder (traced as `agent-renudge`); at ~120s
+  total (60s post-renudge), the member is marked degraded with
+  `reason: no sentinel after 60s post-renudge`. Cheap insurance
+  against a single missed wake-up.
+
+### Documentation
+
+- **`team-forced-cleanup` trace event is now formalized.** Step 8.7
+  previously said "trace `team-forced-cleanup`" inline without a
+  command block. Replaced with the full `treadle trace ...
+  --json-fields=...` invocation including `team_name` + `reason`
+  fields, matching the style of the other trace events in this
+  skill. Operators can now grep the trace for forced cleanups
+  consistently.
+
 ## [0.1.0-alpha.4] — 2026-04-19
 
 ### Fixed

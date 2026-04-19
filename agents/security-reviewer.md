@@ -34,11 +34,25 @@ Every HIGH finding must include a concrete attack scenario, not just a theoretic
 
 Cap at 10 findings per round, ranked by severity.
 
-When your final findings list is complete, **send it to team-lead via `SendMessage`** — team-lead does not see your plain-text output. Put every finding plus this sentinel line as the last line of the `message`:
+When your final findings list is complete, **send it to team-lead via `SendMessage`** — team-lead does not see your plain-text output.
 
-`===SECURITY-REVIEWER-FINAL===`
+## Sentinel — output verbatim
 
-If you have zero findings, SendMessage `"No security-reviewer findings."` followed by the sentinel line.
+The LAST LINE of your `SendMessage` `message` body MUST be this exact string, copied byte-for-byte, on its own line, with no surrounding punctuation, decoration, prefix, or alternate framing:
+
+```
+===SECURITY-REVIEWER-FINAL===
+```
+
+Do NOT invent variants. The dispatcher uses byte-equal matching as the round-complete signal. Examples of variants observed in prior runs that are forbidden:
+
+- `---END security-reviewer---`
+- `<<<END:security-reviewer>>>`
+- `<!-- security-reviewer:end -->`
+- `=== SECURITY-REVIEWER-FINAL ===` (extra spaces)
+- `**===SECURITY-REVIEWER-FINAL===**` (markdown emphasis)
+
+If you have zero findings, SendMessage `"No security-reviewer findings."` followed on the next line by the sentinel above.
 
 ## Cross-collaboration
 
