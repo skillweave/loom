@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.7] -- 2026-04-19
+
+### Changed
+
+- **`spec-review` SKILL.md rewritten against `treadle spec-review-prep`**
+  (new in treadle v0.1.3). The 2026-04-19 smoke #4 alpha.6 re-run
+  (recorded in `docs/ops/smoke-04-runbook.md`) showed that the alpha.6
+  rewrite collapsed `dispatch-team` cleanly (only 1 Bash call inside
+  it before the first `Agent` dispatch) but `spec-review` itself still
+  burned **8 Bash calls before dispatch-team fired** (walk-up,
+  canonicalize, parse-project, read spec, compute state_key, build
+  args, verify args), missing the overall "<=10 full / <5
+  pre-first-review" Bash-call target (observed 18 full / 10
+  pre-first-review). Alpha.7 folds all of `spec-review`'s per-call
+  prep into one treadle subcommand call. New budget:
+  - Pre-dispatch-team Bash in `spec-review`: **2** (flag check +
+    `spec-review-prep`).
+  - `spec-review` SKILL.md length: ~292 -> **160 lines**.
+  - End-to-end target for a clean 2-round 4-reviewer dispatch:
+    **~10 Bash calls total** (2 for `spec-review` + ~8 for
+    `dispatch-team`, within the alpha.6 target).
+- **`bin/VERSION` pinned to `0.1.3`** to pull the new subcommand.
+  Shim cache path encodes the version, so the first call from each
+  user re-fetches + re-verifies SHA256 on v0.1.3.
+
 ## [0.1.0-alpha.6] -- 2026-04-19
 
 ### Changed

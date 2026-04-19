@@ -1,6 +1,6 @@
 {
   "name": "loom",
-  "version": "0.1.0-alpha.6",
+  "version": "0.1.0-alpha.7",
   "description": "Universal Claude Code plugin: skills, agents, first-class team templates, hooks for every project on the author's machine.",
   "author": {
     "name": "Anton Swartz",
