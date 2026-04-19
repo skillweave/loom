@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] — 2026-04-19
+
+### Fixed
+
+- **Reviewer agents now deliver findings via `SendMessage`.** The smoke
+  test surfaced that plain-text output from a teammate stays local —
+  `team-lead` never sees it. Updated all four reviewer agent bodies
+  (`tech-reviewer`, `coverage-reviewer`, `skeptic-reviewer`,
+  `security-reviewer`) with an explicit "SendMessage your findings
+  block to team-lead" instruction, and added the same reminder to
+  `dispatch-team`'s per-member prompt (Step 8.1). Belt + suspenders.
+- **`loom:spec-review` now walks up from cwd** to find `.loom/project.md`
+  (with fallbacks to git toplevel and pwd). Previously `REPO_ROOT` was
+  pinned to `git rev-parse --show-toplevel`, which meant running from
+  inside a subdir of a repo where `.loom/` isn't at the git root would
+  fail. `loom:dispatch-team` Step 4 got the same walk-up so `STATE_DIR`
+  lands next to `.loom/project.md` regardless of caller cwd.
+- **`coverage-reviewer`'s 10-finding cap is now explicit.** Smoke test
+  saw 14 findings emitted; hard-cap language added to the agent body.
+
+### Changed
+
+- `bin/VERSION` pinned to `0.1.1` to pull the treadle flag-parsing fix
+  (see [`skillweave/treadle` v0.1.1](https://github.com/skillweave/treadle/releases/tag/v0.1.1)).
+  Shim cache path encodes version, so the first call from each user
+  re-fetches + re-verifies SHA256 on v0.1.1.
+
 ## [0.1.0-alpha.2] — 2026-04-19
 
 ### Added

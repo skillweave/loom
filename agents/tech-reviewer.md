@@ -32,11 +32,11 @@ For each finding emit one paragraph:
 
 Cap at 10 findings per round, ranked by severity. Don't rewrite the subject.
 
-When your final findings list for the round is complete, emit this sentinel line on its own — exactly as written, no trailing punctuation:
+When your final findings list for the round is complete, **send it to team-lead via `SendMessage`** — the team-lead is the dispatcher merging findings across all members and does not see your plain-text output. Put every finding plus this sentinel line as the last line of the SendMessage `message` body:
 
 `===TECH-REVIEWER-FINAL===`
 
-The dispatcher waits for that sentinel to know you're done with the round.
+The dispatcher waits for that sentinel to know you're done with the round. If you have zero findings, SendMessage `"No tech-reviewer findings."` followed by the sentinel line.
 
 ## Cross-collaboration
 

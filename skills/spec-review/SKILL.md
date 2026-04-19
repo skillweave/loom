@@ -39,25 +39,67 @@ fi
 
 If this exits non-zero, announce the requirement to the user with a link to the runtime-requirements section of the loom README, and stop.
 
-## Step 1 — Locate and canonicalize the spec path
+## Step 1 — Discover the project root (where `.loom/` lives)
+
+**Resolution order:** walk-up from cwd → git toplevel → cwd. This lets users
+keep `.loom/` at a non-git-root (e.g., a monorepo subdir or a standalone
+fixture directory outside a git repo) while still defaulting to sensible
+behavior in a normal git-tracked project.
 
 ```bash
 SPEC_PATH_RAW="<ARGUMENTS value, trimmed>"
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+# 1. Walk up from cwd looking for .loom/project.md; first hit wins.
+PROJECT_ROOT=""
+_cur="$(pwd)"
+while [ "${_cur}" != "/" ] && [ -n "${_cur}" ]; do
+    if [ -f "${_cur}/.loom/project.md" ]; then
+        PROJECT_ROOT="${_cur}"
+        break
+    fi
+    _cur="${_cur%/*}"
+    [ -z "${_cur}" ] && _cur="/"
+    [ "${_cur}" = "/" ] && {
+        if [ -f "/.loom/project.md" ]; then PROJECT_ROOT="/"; fi
+        break
+    }
+done
+
+# 2. Fallback: git toplevel (for the case where someone runs from a
+#    subdir that doesn't have .loom/ above cwd but IS inside a git repo
+#    whose root has .loom/).
+if [ -z "${PROJECT_ROOT}" ]; then
+    _git=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -n "${_git}" ] && [ -f "${_git}/.loom/project.md" ]; then
+        PROJECT_ROOT="${_git}"
+    fi
+fi
+
+# 3. Fallback: pwd (the spec path is about to be checked, so we defer
+#    the "no .loom/" error to Step 2; this just keeps going for now).
+if [ -z "${PROJECT_ROOT}" ]; then
+    PROJECT_ROOT="$(pwd)"
+fi
+
+echo "PROJECT_ROOT=${PROJECT_ROOT}"
+```
+
+## Step 1b — Canonicalize the spec path
+
+```bash
 SPEC_ABS=$(readlink -f "${SPEC_PATH_RAW}" 2>/dev/null || realpath "${SPEC_PATH_RAW}")
 
 [ -n "${SPEC_ABS}" ] && [ -f "${SPEC_ABS}" ] || { echo "loom:spec-review: spec not found at ${SPEC_PATH_RAW}" >&2; exit 1; }
 
-# Refuse paths outside the repo root.
+# Refuse paths outside the project root.
 case "${SPEC_ABS}" in
-    "${REPO_ROOT}"/*) ;;
-    *) echo "loom:spec-review: spec path must be inside the repo root ${REPO_ROOT}" >&2; exit 1 ;;
+    "${PROJECT_ROOT}"/*) ;;
+    *) echo "loom:spec-review: spec path must be inside the project root ${PROJECT_ROOT}" >&2; exit 1 ;;
 esac
 
-# Refuse if any component of the path is a symlink crossing the repo.
-# (readlink already resolved the final hop; use find to check parents.)
+# Refuse if any component of the path is a symlink.
 parent="${SPEC_ABS%/*}"
-while [ "${parent}" != "${REPO_ROOT}" ] && [ "${parent}" != "/" ]; do
+while [ "${parent}" != "${PROJECT_ROOT}" ] && [ "${parent}" != "/" ]; do
     if [ -L "${parent}" ]; then
         echo "loom:spec-review: symlink on path (${parent}); refusing" >&2
         exit 1
@@ -65,15 +107,15 @@ while [ "${parent}" != "${REPO_ROOT}" ] && [ "${parent}" != "/" ]; do
     parent="${parent%/*}"
 done
 
-SPEC_REL="${SPEC_ABS#${REPO_ROOT}/}"
+SPEC_REL="${SPEC_ABS#${PROJECT_ROOT}/}"
 echo "SPEC_REL=${SPEC_REL}"
 echo "SPEC_ABS=${SPEC_ABS}"
 ```
 
-## Step 2 — Locate .loom/project.md
+## Step 2 — Verify `.loom/project.md` exists at project root
 
 ```bash
-PROJECT_MD="${REPO_ROOT}/.loom/project.md"
+PROJECT_MD="${PROJECT_ROOT}/.loom/project.md"
 if [ ! -f "${PROJECT_MD}" ]; then
     cat >&2 <<EOF
 loom:spec-review: no .loom/project.md found at ${PROJECT_MD}.

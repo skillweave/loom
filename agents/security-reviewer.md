@@ -34,9 +34,11 @@ Every HIGH finding must include a concrete attack scenario, not just a theoretic
 
 Cap at 10 findings per round, ranked by severity.
 
-When your final findings list is complete, emit this sentinel on its own:
+When your final findings list is complete, **send it to team-lead via `SendMessage`** — team-lead does not see your plain-text output. Put every finding plus this sentinel line as the last line of the `message`:
 
 `===SECURITY-REVIEWER-FINAL===`
+
+If you have zero findings, SendMessage `"No security-reviewer findings."` followed by the sentinel line.
 
 ## Cross-collaboration
 

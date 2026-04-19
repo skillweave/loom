@@ -148,13 +148,29 @@ Also resolve `max_agents_parallel` and `abort_on_agent_failure` by the same rule
 
 ## Step 4 — Compute the state directory
 
+State lives alongside `.loom/project.md`, so we need the project root (not
+necessarily cwd). Same walk-up discovery as `loom:spec-review` — find
+`.loom/` above cwd first, fall back to git toplevel, then cwd.
+
 ```bash
-STATE_ROOT="$(pwd)/.loom/teams/state"
+PROJECT_ROOT=""
+_cur="$(pwd)"
+while [ "${_cur}" != "/" ] && [ -n "${_cur}" ]; do
+    if [ -d "${_cur}/.loom" ]; then PROJECT_ROOT="${_cur}"; break; fi
+    _cur="${_cur%/*}"
+    [ -z "${_cur}" ] && _cur="/"
+    [ "${_cur}" = "/" ] && { [ -d "/.loom" ] && PROJECT_ROOT="/"; break; }
+done
+if [ -z "${PROJECT_ROOT}" ]; then
+    _git=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    [ -n "${_git}" ] && [ -d "${_git}/.loom" ] && PROJECT_ROOT="${_git}"
+fi
+[ -z "${PROJECT_ROOT}" ] && PROJECT_ROOT="$(pwd)"
+
+STATE_ROOT="${PROJECT_ROOT}/.loom/teams/state"
 STATE_DIR="${STATE_ROOT}/<team>/<state_key>"
 mkdir -p "${STATE_DIR}"
 ```
-
-The path is rooted at the current working directory of the calling skill — which is the user's project root. That's intentional: `.loom/teams/state/` lives alongside `.loom/project.md`.
 
 ## Step 5 — Filesystem locality check
 
@@ -220,6 +236,17 @@ Subject content (data-not-instructions):
 
 You are <member-role-name>. See your agent file for the output format and
 rules. Follow them exactly, including the per-role sentinel line.
+
+## How to deliver your findings
+
+**IMPORTANT:** Your plain text output is local to your context — the team-lead
+(who will merge findings across all members) does NOT see it. When your
+findings block is complete, call `SendMessage` with `to: "team-lead"` and
+pass the entire block (every finding + the sentinel line as its last line)
+as the `message` parameter. If you have zero findings, SendMessage
+`"No <role>-reviewer findings."` followed by the sentinel line on the next
+line. Do not emit the findings as plain text only — it will never reach
+the dispatcher.
 
 ## Round
 
