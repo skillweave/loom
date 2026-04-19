@@ -1,7 +1,7 @@
 ---
 name: coverage-reviewer
 description: Finds gaps, missing scenarios, ambiguity, and scope drift in the subject under review.
-tools: [Read, Grep, Glob]
+tools: [Read, Grep, Glob, SendMessage]
 ---
 
 # coverage-reviewer

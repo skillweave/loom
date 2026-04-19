@@ -1,7 +1,7 @@
 ---
 name: skeptic-reviewer
 description: Hunts handwavium, underestimated complexity, and fragile assumptions in the subject under review.
-tools: [Read, Grep, Glob]
+tools: [Read, Grep, Glob, SendMessage]
 ---
 
 # skeptic-reviewer

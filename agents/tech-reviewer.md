@@ -1,7 +1,7 @@
 ---
 name: tech-reviewer
 description: Verifies factual claims in the subject under review against the actual code and external references the subject cites.
-tools: [Read, Grep, Glob]
+tools: [Read, Grep, Glob, SendMessage]
 ---
 
 # tech-reviewer

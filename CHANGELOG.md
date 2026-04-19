@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] — 2026-04-19
+
+### Fixed
+
+- **`SendMessage` added to reviewer agents' tool allow-lists.** Alpha.3
+  instructed reviewers to SendMessage their findings to team-lead but
+  omitted the tool from the `tools:` frontmatter. Per Phase 0 Prereq 3,
+  the harness refuses calls to tools not in the allow-list — so the
+  agents literally could not originate a SendMessage despite being
+  told to. Smoke test #2 caught this: reviewers idled silently. All
+  four agents now list `[Read, Grep, Glob, SendMessage]`; peer
+  cross-collab (reviewer-to-reviewer) also now works for the same
+  reason.
+
 ## [0.1.0-alpha.3] — 2026-04-19
 
 ### Fixed

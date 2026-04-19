@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: Audits trust boundaries, prompt-injection surface, privilege scope, and supply-chain assumptions in the subject under review.
-tools: [Read, Grep, Glob]
+tools: [Read, Grep, Glob, SendMessage]
 ---
 
 # security-reviewer
