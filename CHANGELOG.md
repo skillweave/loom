@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6] -- 2026-04-19
+
+### Changed
+
+- **`dispatch-team` SKILL.md rewritten against coarse-grained treadle
+  lifecycle subcommands** (`dispatch-init`, `round-init`,
+  `round-finalize`, `dispatch-end` -- new in treadle v0.1.2). Alpha.5's
+  smoke #4 Part A surfaced ~180k tokens / ~25 pre-first-review Bash
+  approvals per dispatch: "massive bloat", "terrible UX". Root cause
+  was fine-grained orchestration -- the SKILL.md chained 60 to 80
+  atomic helper calls per dispatch for operations that never needed
+  LLM judgment (args parse, plugin-root resolve, fs-locality, lock,
+  parse-team, policy resolve, state-dir compute, per-round dispatch
+  and kickoff traces, append-findings-log, save-meta, TeamDelete, lock
+  release). Those now collapse into four JSON-in/JSON-out subcommands
+  that each bundle 5 to 15 atomic ops plus the relevant trace events.
+  The SKILL.md retains prompt composition + the teams-primitive tool
+  call sequence + the round-drive watch loop + LLM-judgment work
+  (structural sentinel deviation detection, semantic finding dedup
+  across members). Target metrics for a clean 2-round 4-reviewer
+  dispatch: **6 to 10 Bash calls per dispatch, under 5 before the
+  first reviewer fires, under 200-ish lines in SKILL.md, under 40k
+  tokens per spec review**.
+- **`bin/VERSION` pinned to `0.1.2`.** Bumped from `0.1.1` to pull the
+  new lifecycle subcommands. Shim cache path encodes the version, so
+  the first call from each user re-fetches + re-verifies SHA256 on
+  v0.1.2.
+- **`bin/treadle` shim exports `LOOM_PLUGIN_ROOT`** before exec so
+  subcommands that need the plugin root (e.g., `dispatch-init`
+  resolving `teams/<name>.md`) can read it from env without the
+  SKILL.md having to walk up the shim's path in a separate Bash call.
+
 ## [0.1.0-alpha.5] — 2026-04-19
 
 ### Fixed

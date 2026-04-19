@@ -69,4 +69,12 @@ if [ ! -x "${CACHE_BIN}" ]; then
     chmod +x "${CACHE_BIN}"
 fi
 
+# Export the plugin root so treadle subcommands (dispatch-init, etc.)
+# can locate teams/, agents/, and similar plugin-scoped files without
+# the SKILL.md having to compute the path in a separate Bash call.
+# The shim lives at <plugin_root>/bin/treadle, so <plugin_root> is
+# the parent of SHIM_DIR.
+LOOM_PLUGIN_ROOT=$(CDPATH= cd -- "${SHIM_DIR}/.." && pwd)
+export LOOM_PLUGIN_ROOT
+
 exec "${CACHE_BIN}" "$@"
