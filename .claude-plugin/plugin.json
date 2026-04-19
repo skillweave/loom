@@ -1,0 +1,12 @@
+{
+  "name": "loom",
+  "version": "0.1.0-alpha.1",
+  "description": "Universal Claude Code plugin: skills, agents, first-class team templates, hooks for every project on the author's machine.",
+  "author": {
+    "name": "Anton Swartz",
+    "email": "a@c4.io"
+  },
+  "license": "MIT",
+  "min_cc_version": "2.1.114",
+  "supported_schema_range": [1, 1]
+}

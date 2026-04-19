@@ -1,0 +1,20 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Build / test artifacts
+/build/
+/dist/
+/coverage/
+
+# Claude Code per-clone settings
+.claude/settings.local.json
+
+# Fixture scratch state (Plan C golden-fixture harness)
+tests/fixtures/**/.loom/tmp/
+tests/fixtures/**/.loom/teams/state/
+
+# Local treadle cache if developing on this checkout
+.cache/
